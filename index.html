@@ -30,93 +30,80 @@
     </div>
 
     <script>
-        // --- ⚠️ ATENCIÓN: CAMBIA ESTAS DOS LÍNEAS ⚠️ ---
-        // Encuentras esto en Supabase -> Project Settings -> API
-        const URL_SUPABASE = 'https://hsjvxjaedmdxpiikokzw.supabase.co';
-        const LLAVE_SUPABASE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzanZ4amFlZG1keHBpaWtva3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODAwMjQsImV4cCI6MjEwNjM1NjAyNH0.nVDBau_Q2eBXByCfk4lNuXSViMnWqFyWOcJ8vUnwz0E';
-        // ------------------------------------------------
+    // --- ⚠️ CONFIGURACIÓN DE SUPABASE ⚠️ ---
+    const URL_SUPABASE = 'https://hsjvxjaedmdxpiikokzw.supabase.co';
+    const LLAVE_SUPABASE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzanZ4amFlZG1keHBpaWtva3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODAwMjQsImV4cCI6MjEwNjM1NjAyNH0.nVDBau_Q2eBXByCfk4lNuXSViMnWqFyWOcJ8vUnwz0E';
 
-        // 1. Despertamos al robot de Supabase
-        const supabase = window.supabase.createClient(URL_SUPABASE, LLAVE_SUPABASE);
+    // 1. Le cambiamos el nombre a 'clienteSupabase' para evitar choque de nombres
+    const clienteSupabase = window.supabase.createClient(URL_SUPABASE, LLAVE_SUPABASE);
 
-        // 2. Revisamos qué dice la barra de direcciones de arriba
-        // Por ejemplo, si entran a tusitio.onrender.com/gatito, la palabra será "gatito"
-        const palabraEnElLink = window.location.pathname.substring(1); 
+    // 2. Revisamos si hay algo después del / en la URL
+    const palabraEnElLink = window.location.pathname.substring(1); 
 
-        // 3. El cerebro del robot: ¿Qué hacemos?
-        if (palabraEnElLink !== '' && palabraEnElLink !== 'index.html') {
-            // SI HAY UNA PALABRA (alguien entró a un link corto)
-            // Cambiamos el texto de la pantalla
-            document.getElementById('pantalla').innerHTML = "<h1>🚀 Buscando tu destino...</h1><p>Espera un segundito.</p>";
-            // Mandamos llamar a la función que busca en el cuaderno
-            buscarYRedirigir(palabraEnElLink);
+    // 3. ¿Qué hacemos al cargar la página?
+    if (palabraEnElLink !== '' && palabraEnElLink !== 'index.html') {
+        document.getElementById('pantalla').innerHTML = "<h1>🚀 Buscando tu destino...</h1><p>Espera un segundito.</p>";
+        buscarYRedirigir(palabraEnElLink);
+    }
+
+    // --- FUNCIONES ---
+
+    function generarCodigo() {
+        const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let codigo = '';
+        for (let i = 0; i < 6; i++) {
+            codigo += letras.charAt(Math.floor(Math.random() * letras.length));
+        }
+        return codigo;
+    }
+
+    async function hacerMagia() {
+        let linkReal = document.getElementById('link-largo').value.trim();
+        const mensaje = document.getElementById('resultado');
+
+        if (linkReal === '') {
+            mensaje.innerHTML = '¡Oye! Primero pega un link. 😅';
+            return;
         }
 
-        // --- FUNCIONES DEL ROBOT ---
-
-        // Función para crear letitas al azar (como "aB3x9")
-        function generarCodigo() {
-            const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let codigo = '';
-            for (let i = 0; i < 6; i++) {
-                codigo += letras.charAt(Math.floor(Math.random() * letras.length));
-            }
-            return codigo;
+        if (!linkReal.startsWith('http://') && !linkReal.startsWith('https://')) {
+            linkReal = 'https://' + linkReal;
         }
 
-        // Función que se activa al apretar el botón
-        async function hacerMagia() {
-            let linkReal = document.getElementById('link-largo').value.trim();
-            const mensaje = document.getElementById('resultado');
+        mensaje.innerHTML = 'Creando la magia... 🪄';
+        const codigoCorto = generarCodigo();
 
-            // Si no escribió nada, lo regañamos
-            if (linkReal === '') {
-                mensaje.innerHTML = '¡Oye! Primero pega un link. 😅';
-                return;
-            }
+        // Usamos clienteSupabase aquí
+        const { data, error } = await clienteSupabase
+            .from('enlaces')
+            .insert([
+                { codigo_corto: codigoCorto, url_real: linkReal }
+            ]);
 
-            // Un truquito: si el link no tiene "http://", se lo ponemos para que no haya errores
-            if (!linkReal.startsWith('http://') && !linkReal.startsWith('https://')) {
-                linkReal = 'https://' + linkReal;
-            }
-
-            mensaje.innerHTML = 'Creando la magia... 🪄';
-            const codigoCorto = generarCodigo();
-
-            // Anotamos en nuestro cuaderno de Supabase (en la tabla 'enlaces')
-            const { data, error } = await supabase
-                .from('enlaces')
-                .insert([
-                    { codigo_corto: codigoCorto, url_real: linkReal }
-                ]);
-
-            if (error) {
-                mensaje.innerHTML = 'Uy, hubo un problema técnico 😢';
-                console.error(error);
-            } else {
-                // Si todo sale bien, le mostramos su nuevo link cortito
-                const linkNuevo = window.location.origin + '/' + codigoCorto;
-                mensaje.innerHTML = '¡Listo! Tu link es:<br><br><a href="' + linkNuevo + '" target="_blank">' + linkNuevo + '</a>';
-            }
+        if (error) {
+            mensaje.innerHTML = 'Uy, hubo un problema técnico 😢';
+            console.error('Error de Supabase:', error);
+        } else {
+            const linkNuevo = window.location.origin + '/' + codigoCorto;
+            mensaje.innerHTML = '¡Listo! Tu link es:<br><br><a href="' + linkNuevo + '" target="_blank">' + linkNuevo + '</a>';
         }
+    }
 
-        // Función que busca la palabra en el cuaderno y te manda de viaje
-        async function buscarYRedirigir(codigo) {
-            // Busca en el cuaderno el 'codigo_corto' que sea igual a la palabra
-            const { data, error } = await supabase
-                .from('enlaces')
-                .select('url_real')
-                .eq('codigo_corto', codigo)
-                .single(); 
+    async function buscarYRedirigir(codigo) {
+        // Usamos clienteSupabase aquí
+        const { data, error } = await clienteSupabase
+            .from('enlaces')
+            .select('url_real')
+            .eq('codigo_corto', codigo)
+            .single(); 
 
-            if (data) {
-                // ¡Lo encontró! Te teletransporta al link real.
-                window.location.href = data.url_real;
-            } else {
-                // No lo encontró
-                document.getElementById('pantalla').innerHTML = "<h1>😭 Ups...</h1><p>Este link no existe o fue borrado.</p>";
-            }
+        if (data) {
+            window.location.href = data.url_real;
+        } else {
+            document.getElementById('pantalla').innerHTML = "<h1>😭 Ups...</h1><p>Este link no existe o fue borrado.</p>";
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
